@@ -334,11 +334,11 @@ if __name__ == "__main__":
     logging.info(f"Using {device=}")
 
     tokenizer = tiktoken.get_encoding("gpt2")
-    # gpt = GPT.from_pretrained("gpt2")
-    gpt = GPT(GPTConfig(block_size=1024))
+    gpt = GPT.from_pretrained("gpt2")
+    # gpt = GPT(GPTConfig(block_size=1024))
     logging.info(f"{gpt.config=}")
     block_size = gpt.config.block_size
-    n_iterations = 1
+    n_iterations = 2
     batch_size = 6
     n_steps = n_iterations * 330 // batch_size
     logging.info(f"found {count_params(gpt)} parameters")
