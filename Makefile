@@ -5,3 +5,9 @@ install-req:
 	pip install -r requirements.txt
 	
 install: install-dev install-req
+
+black:
+	black .
+
+mypy:
+	mypy .
