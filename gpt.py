@@ -4,32 +4,6 @@ import torch
 from torch.nn import functional as F
 import torch.nn as nn
 import math
-import re
-import logging
-
-@torch.no_grad()
-def set_and_check(tensor: torch.Tensor, new_data: torch.Tensor, hard=True):
-    if tensor.size() != new_data.size():
-        logging.error(f"Size mismatch {(tensor.size(), new_data.size())}")
-        if hard:
-            assert tensor.size() == new_data.size()
-    tensor.copy_(new_data)
-
-
-def layer_norm_from_pretrained(params):
-    weight = params["weight"]
-    bias = params["bias"]
-    layer_norm = torch.nn.LayerNorm(weight.size(0))
-    layer_norm.weight.data = weight.data
-    layer_norm.bias.data = bias.data
-    return layer_norm
-
-
-def embedding_from_pretrained(params):
-    weight = params["weight"]
-    embedding = torch.nn.Embedding(weight.size(0), weight.size(1))
-    embedding.weight.data = weight.data
-    return embedding
 
 
 class CausalSelfAttention(nn.Module):
@@ -52,15 +26,6 @@ class CausalSelfAttention(nn.Module):
             .tril()
             .view(1, 1, config.block_size, config.block_size),
         )
-
-    @classmethod
-    def from_pretrained(cls, config, params):
-        obj = cls(config)
-        set_and_check(obj.c_attn.weight, params["c_attn.weight"].t(), hard=True)
-        set_and_check(obj.c_attn.bias, params["c_attn.bias"], hard=True)
-        set_and_check(obj.c_proj.weight, params["c_proj.weight"].t(), hard=True)
-        set_and_check(obj.c_proj.bias, params["c_proj.bias"], hard=True)
-        return obj
 
     def forward(self, x):
         B, T, C = x.size()
@@ -103,21 +68,6 @@ class MLP(nn.Module):
         x = self.c_proj(x)
         return x
 
-    @classmethod
-    def from_pretrained(cls, config, params):
-        obj = cls(config)
-        set_and_check(obj.c_fc.weight, params["c_fc.weight"].t(), hard=True)
-        set_and_check(obj.c_fc.bias, params["c_fc.bias"], hard=True)
-        set_and_check(obj.c_proj.weight, params["c_proj.weight"].t(), hard=True)
-        set_and_check(obj.c_proj.bias, params["c_proj.bias"], hard=True)
-        return obj
-
-
-def extract_params(params, prefix):
-    return {
-        re.sub(f"^{prefix}.", "", k): v for k, v in params.items() if f"{prefix}" in k
-    }
-
 
 class Block(nn.Module):
     def __init__(self, config: GPTConfig, *args, **kwargs) -> None:
@@ -133,31 +83,6 @@ class Block(nn.Module):
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x  # (B,T,C)
-
-    @classmethod
-    def from_pretrained(cls, config, params):
-        obj = cls(config)
-        ln_1_params = extract_params(
-            params=params,
-            prefix="ln_1",
-        )
-        obj.ln_1 = layer_norm_from_pretrained(ln_1_params)
-
-        obj.attn = CausalSelfAttention.from_pretrained(
-            config,
-            extract_params(
-                params=params,
-                prefix="attn",
-            ),
-        )
-
-        ln_2_params = extract_params(params=params, prefix="ln_2")
-        obj.ln_2 = layer_norm_from_pretrained(ln_2_params)
-
-        obj.mlp = MLP.from_pretrained(
-            config, extract_params(params=params, prefix="mlp")
-        )
-        return obj
 
 
 class GPT(nn.Module):
@@ -219,21 +144,15 @@ class GPT(nn.Module):
         config = config_map[model_type]
 
         obj = cls(config)
-        obj.transformer.wte = embedding_from_pretrained(
-            extract_params(params=sd_hf, prefix="transformer.wte")
-        )
-        obj.transformer.wpe = embedding_from_pretrained(
-            extract_params(params=sd_hf, prefix="transformer.wpe")
-        )
-        for block_idx in range(obj.config.n_layer):
-            h_params = extract_params(params=sd_hf, prefix=f"transformer.h.{block_idx}")
-            obj.transformer.h[block_idx] = Block.from_pretrained(config, h_params)
-        obj.transformer.ln_f = layer_norm_from_pretrained(
-            extract_params(sd_hf, "transformer.ln_f")
-        )
-        set_and_check(
-            obj.lm_head.weight, extract_params(params=sd_hf, prefix="lm_head")["weight"]
-        )
+        sd = obj.state_dict()
+        for k in sd:
+            if k.endswith(".attn.bias"):  # ignore bias since they are just buffers
+                continue
+            src = sd_hf[k]
+            if k.split(".")[-2] in ("c_fc", "c_proj", "c_attn"):
+                src = src.t()
+            with torch.no_grad():
+                sd[k].copy_(src)
         return obj
 
 
