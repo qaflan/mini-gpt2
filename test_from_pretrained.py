@@ -18,10 +18,9 @@ def test_pretrained():
     for k in sd_model:
         v = sd_model[k]
         v1 = sd_recreated[k]
-        if (
-            k.endswith(".c_attn.weight")
-            or k.endswith(".c_proj.weight")
-            or k.endswith(".c_fc.weight")
-        ):
+        if k.split(".")[-2] in ("c_attn", "c_proj", "c_fc"):
             v1 = v1.t()
         assert torch.all(v1 == v)
+    assert count_params(model) == count_params(
+        recreated_model
+    ), "Param counts do not match"
