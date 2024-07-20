@@ -6,15 +6,18 @@ from dataclasses import dataclass
 import math
 import re
 import tiktoken
+import logging
 
-device = "cpu"
-if torch.cuda.is_available():
-    device = "cuda"
-elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-    device = "mps"
+logging.getLogger().setLevel(logging.INFO)
 
-# override
-device = "cpu"
+
+def detect_device():
+    device = "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = "mps"
+    return device
 
 
 def count_params(model):
@@ -32,7 +35,7 @@ class GPTConfig:
 
 def set_and_check(tensor: torch.Tensor, new_data: torch.Tensor, hard=True):
     if tensor.size() != new_data.size():
-        print(f"Size mismatch {(tensor.size(), new_data.size())}")
+        logging.error(f"Size mismatch {(tensor.size(), new_data.size())}")
         if hard:
             assert tensor.size() == new_data.size()
     tensor.data = new_data.data
@@ -248,7 +251,6 @@ class GPT(nn.Module):
     def from_pretrained(cls, model_type):
         model_hf = GPT2LMHeadModel.from_pretrained(model_type)
         sd_hf = model_hf.state_dict()
-
         config_map = {
             "gpt2": GPTConfig(
                 block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embed=768
@@ -298,12 +300,18 @@ class GPTGenerator:
 
 class DataLoader:
     def __init__(
-        self, file_name: str, batch_size: int, block_size: int, model_name: str = "gpt2"
+        self,
+        file_name: str,
+        batch_size: int,
+        block_size: int,
+        model_name: str = "gpt2",
+        device: str = "cpu",
     ) -> None:
         with open(file_name, "r") as f:
             text = f.read()
         tokenizer = tiktoken.get_encoding(model_name)
-        self.data = torch.tensor(tokenizer.encode(text))
+        self.data = torch.tensor(tokenizer.encode(text)).to(device)
+        logging.info(f"Loaded {self.data.size(0)} tokens.")
         self.batch_size = batch_size
         self.block_size = block_size
         self.current_pos = 0
@@ -321,24 +329,36 @@ class DataLoader:
 
 
 if __name__ == "__main__":
-    print(f"Using {device=}")
+    device = detect_device()
+    # device = "cpu" # override
+    logging.info(f"Using {device=}")
+
     tokenizer = tiktoken.get_encoding("gpt2")
-    gpt = GPT.from_pretrained("gpt2")
-    # gpt = GPT(GPTConfig(block_size=6))
-    print(f"found {count_params(gpt)} parameters")
+    # gpt = GPT.from_pretrained("gpt2")
+    gpt = GPT(GPTConfig(block_size=1024))
+    logging.info(f"{gpt.config=}")
+    block_size = gpt.config.block_size
+    n_iterations = 1
+    batch_size = 6
+    n_steps = n_iterations * 330 // batch_size
+    logging.info(f"found {count_params(gpt)} parameters")
     gpt.to(device)
 
     data_loader = DataLoader(
-        file_name="../input.txt", model_name="gpt2", batch_size=10, block_size=1024
+        file_name="input.txt",
+        model_name="gpt2",
+        batch_size=batch_size,
+        block_size=block_size,
+        device=device,
     )
     optimizer = torch.optim.AdamW(gpt.parameters(), lr=3e-4)
-    x, y = data_loader.next_batch()
-    for i in range(50):
+    for i in range(n_steps):
+        x, y = data_loader.next_batch()
         optimizer.zero_grad()
         logits, loss = gpt(x, y)
         loss.backward()
         optimizer.step()
-        print(f"step {i}, loss: {loss.item()}")
+        logging.info(f"step {i}, loss: {loss.item()}")
 
     seed_text = "Hello, I am a language model,"
     gpt.eval()
