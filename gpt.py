@@ -100,6 +100,9 @@ class GPT(nn.Module):
         )
         self.lm_head = nn.Linear(config.n_embed, config.vocab_size, bias=False)
 
+        # embedding weights and last linear layer should be shared
+        self.lm_head.weight = self.transformer.wte.weight
+
     @torch.no_grad()
     def generate(self, idx: torch.Tensor, max_length: int, decoder=None):
 
