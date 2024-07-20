@@ -12,5 +12,5 @@ class GPTConfig:
 
 @dataclass
 class GPTTrainConfig:
-    batch_size: int = 6
+    batch_size: int = 7
     n_iterations: float = 1.0
