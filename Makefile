@@ -11,3 +11,5 @@ black:
 
 mypy:
 	mypy .
+
+check: black mypy
