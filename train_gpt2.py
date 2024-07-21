@@ -19,7 +19,8 @@ def detect_device():
 
 
 def count_params(model):
-    return sum([torch.prod(torch.tensor(p.size())) for p in model.parameters()])
+    param_count = sum([p.nelement() for p in model.parameters()])
+    return param_count
 
 
 class DataLoader:
