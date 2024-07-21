@@ -23,6 +23,11 @@ def count_params(model):
     return param_count
 
 
+def get_memory_size(model):
+    n_bytes = sum([p.nelement() * p.element_size() for p in model.parameters()])
+    return n_bytes
+
+
 class DataLoader:
     def __init__(
         self,
@@ -74,6 +79,7 @@ if __name__ == "__main__":
     batch_size = train_config.batch_size
     n_steps = int(n_iterations * 330 // batch_size)
     logging.info(f"found {count_params(gpt)} parameters")
+    logging.info(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
     gpt.to(device)
 
     data_loader = DataLoader(
