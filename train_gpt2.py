@@ -97,7 +97,8 @@ if __name__ == "__main__":
         x = x.to(device)
         y = y.to(device)
         optimizer.zero_grad()
-        logits, loss = gpt(x, y)
+        with torch.autocast(device_type=device, dtype=torch.bfloat16):
+            logits, loss = gpt(x, y)
         loss.backward()
         optimizer.step()
         torch.cuda.synchronize()
