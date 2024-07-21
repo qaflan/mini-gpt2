@@ -103,6 +103,17 @@ class GPT(nn.Module):
         # embedding weights and last linear layer should be shared
         self.lm_head.weight = self.transformer.wte.weight
 
+        # initialization:
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        elif isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+
     @torch.no_grad()
     def generate(self, idx: torch.Tensor, max_length: int, decoder=None):
 
