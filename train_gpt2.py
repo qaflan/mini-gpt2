@@ -4,6 +4,7 @@ import tiktoken
 import logging
 from configs import GPTConfig, GPTTrainConfig
 import torch
+import time
 
 logging.getLogger().setLevel(logging.INFO)
 from gpt import GPT, GPTGenerator
@@ -66,18 +67,19 @@ if __name__ == "__main__":
     torch.manual_seed(SEED)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(SEED)
-    # device = "cpu" # override
     logging.info(f"Using {device=}")
 
+    torch.set_float32_matmul_precision("high")
+
     tokenizer = tiktoken.get_encoding("gpt2")
-    gpt = GPT.from_pretrained("gpt2")
-    # gpt = GPT(GPTConfig(block_size=1024))
+    # gpt = GPT.from_pretrained("gpt2")
+    gpt = GPT(GPTConfig())
     logging.info(f"{gpt.config=}")
     block_size = gpt.config.block_size
     train_config = GPTTrainConfig()
     n_iterations = train_config.n_iterations
     batch_size = train_config.batch_size
-    n_steps = int(n_iterations * 330 // batch_size)
+    n_steps = 20  # int(n_iterations * 330 // batch_size)
     logging.info(f"found {count_params(gpt)} parameters")
     logging.info(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
     gpt.to(device)
@@ -91,13 +93,24 @@ if __name__ == "__main__":
     optimizer = torch.optim.AdamW(gpt.parameters(), lr=3e-4)
     for i in range(n_steps):
         x, y = data_loader.next_batch()
+        time0 = time.time()
         x = x.to(device)
         y = y.to(device)
         optimizer.zero_grad()
         logits, loss = gpt(x, y)
         loss.backward()
         optimizer.step()
-        logging.info(f"step {i}, loss: {loss.item()}")
+        torch.cuda.synchronize()
+        time1 = time.time()
+        total_time = time1 - time0
+        throughput = (train_config.batch_size * gpt.config.block_size) / total_time
+        logging.info(
+            f"step {i:3d}, loss: {loss.item():4f} took {total_time*1000:.2f} milliseconds @ {throughput:.2f} tokens/sec"
+        )
+
+    import sys
+
+    sys.exit(0)
 
     seed_text = "Hello, I am a language model,"
     gpt.eval()
