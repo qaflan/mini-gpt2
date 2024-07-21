@@ -13,3 +13,6 @@ mypy:
 	mypy .
 
 check: black mypy
+
+test:
+	pytest .
