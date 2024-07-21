@@ -57,6 +57,10 @@ class DataLoader:
 
 if __name__ == "__main__":
     device = detect_device()
+    SEED = 1337
+    torch.manual_seed(SEED)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(SEED)
     # device = "cpu" # override
     logging.info(f"Using {device=}")
 
