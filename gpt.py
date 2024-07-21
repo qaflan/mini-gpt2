@@ -41,15 +41,18 @@ class CausalSelfAttention(nn.Module):
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(
             1, 2
         )  # B, n_head, T, head_size
-        attention = (q @ k.transpose(-1, -2)) * (
-            1.0 / math.sqrt(k.size(-1))
-        )  # B, n_head, T, T
-        attention = attention.masked_fill(
-            self.bias[:, :, :T, :T] == 0, float("-inf")
-        )  # B, n_head, T, T
-        attention = attention.softmax(dim=-1) @ v  # # B, n_head, T, head_size
-        y = attention.transpose(1, 2)  # B, T, n_head, head_size
-        y = y.contiguous().view(B, T, -1)  # B, T, C
+
+        # attention = (q @ k.transpose(-1, -2)) * (
+        #     1.0 / math.sqrt(k.size(-1))
+        # )  # B, n_head, T, T
+        # attention = attention.masked_fill(
+        #     self.bias[:, :, :T, :T] == 0, float("-inf")
+        # )  # B, n_head, T, T
+        # y = attention.softmax(dim=-1) @ v  # # B, n_head, T, head_size
+
+        # use flash attention instead
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+        y = y.transpose(1, 2).contiguous().view(B, T, -1)  # B, T, C
         y = self.c_proj(y)  # B, T, C
         return y
 
