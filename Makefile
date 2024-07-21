@@ -4,7 +4,7 @@ install-dev:
 install-req:
 	pip install -r requirements.txt
 	
-install: install-dev install-req
+install: install-req install-dev
 
 black:
 	black .
