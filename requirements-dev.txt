@@ -2,3 +2,4 @@ black
 mypy
 jupyter
 pytest
+matplotlib
