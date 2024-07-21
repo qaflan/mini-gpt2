@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     tokenizer = tiktoken.get_encoding("gpt2")
     # gpt = GPT.from_pretrained("gpt2")
-    gpt = GPT(GPTConfig())
+    gpt = GPT(GPTConfig(vocab_size=50304))
     logging.info("compiling torch model...")
     gpt = torch.compile(gpt)
     logging.info(f"{gpt.config=}")
@@ -111,10 +111,10 @@ if __name__ == "__main__":
             f"step {i:3d}, loss: {loss.item():4f} took {total_time*1000:.2f} milliseconds @ {throughput:.2f} tokens/sec"
         )
 
-    seed_text = "Hello, I am a language model,"
-    gpt.eval()
-    torch.manual_seed(42)
-    my_generator = GPTGenerator(gpt, tokenizer, device)
-    for sentence in my_generator.generate(seed_text, 100, 3):
-        print(sentence)
-        print("_" * 40)
+    # seed_text = "Hello, I am a language model,"
+    # gpt.eval()
+    # torch.manual_seed(42)
+    # my_generator = GPTGenerator(gpt, tokenizer, device)
+    # for sentence in my_generator.generate(seed_text, 100, 3):
+    #     print(sentence)
+    #     print("_" * 40)
