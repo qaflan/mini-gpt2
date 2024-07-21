@@ -74,6 +74,8 @@ if __name__ == "__main__":
     tokenizer = tiktoken.get_encoding("gpt2")
     # gpt = GPT.from_pretrained("gpt2")
     gpt = GPT(GPTConfig())
+    logging.info("compiling torch model...")
+    gpt = torch.compile(gpt)
     logging.info(f"{gpt.config=}")
     block_size = gpt.config.block_size
     train_config = GPTTrainConfig()
