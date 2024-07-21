@@ -108,10 +108,6 @@ if __name__ == "__main__":
             f"step {i:3d}, loss: {loss.item():4f} took {total_time*1000:.2f} milliseconds @ {throughput:.2f} tokens/sec"
         )
 
-    import sys
-
-    sys.exit(0)
-
     seed_text = "Hello, I am a language model,"
     gpt.eval()
     torch.manual_seed(42)
