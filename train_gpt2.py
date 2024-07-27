@@ -2,7 +2,7 @@
 from __future__ import annotations
 import tiktoken
 import logging
-from configs import GPTConfig, GPTTrainConfig
+from configs import GPTConfig, GPTTrainConfig, Config
 import torch
 import time
 
@@ -62,26 +62,28 @@ class DataLoader:
 
 
 if __name__ == "__main__":
+    train_config = GPTTrainConfig()
+    model_config = GPTConfig(vocab_size=50304)
+    config = Config(model_config=model_config, train_config=train_config)
     device = detect_device()
-    SEED = 1337
-    torch.manual_seed(SEED)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(SEED)
+    if train_config.seed is not None:
+        torch.manual_seed(train_config.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(train_config.seed)
+
     logging.info(f"Using {device=}")
 
-    torch.set_float32_matmul_precision("high")
+    torch.set_float32_matmul_precision(train_config.float32_matmul_precision)
 
     tokenizer = tiktoken.get_encoding("gpt2")
     # gpt = GPT.from_pretrained("gpt2")
-    gpt = GPT(GPTConfig(vocab_size=50304))
+    gpt = GPT(model_config)
     logging.info("compiling torch model...")
     gpt = torch.compile(gpt)
     logging.info(f"{gpt.config=}")
     block_size = gpt.config.block_size
-    train_config = GPTTrainConfig()
-    n_iterations = train_config.n_iterations
     batch_size = train_config.batch_size
-    n_steps = 20  # int(n_iterations * 330 // batch_size)
+    n_steps = train_config.n_steps 
     logging.info(f"found {count_params(gpt)} parameters")
     logging.info(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
     gpt.to(device)

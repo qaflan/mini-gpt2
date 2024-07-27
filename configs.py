@@ -13,4 +13,12 @@ class GPTConfig:
 @dataclass
 class GPTTrainConfig:
     batch_size: int = 18
-    n_iterations: float = 1.0
+    n_steps: int = 20
+    seed: int = 1337
+    float32_matmul_precision: str = "high"
+
+
+@dataclass
+class Config:
+    model_config: GPTConfig
+    train_config: GPTTrainConfig
