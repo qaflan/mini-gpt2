@@ -123,7 +123,6 @@ class GPT(nn.Module):
 
     @torch.no_grad()
     def generate(self, idx: torch.Tensor, max_length: int, decoder=None):
-
         for _ in range(max_length):
             logits, _ = self.forward(
                 idx[:, idx.size(-1) - self.config.block_size :]
