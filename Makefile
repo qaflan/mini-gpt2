@@ -6,8 +6,8 @@ install-req:
 	
 install: install-req install-dev
 
-black:
-	black .
+format:
+	ruff format .
 
 mypy:
 	mypy .
