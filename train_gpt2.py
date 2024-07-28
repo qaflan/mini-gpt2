@@ -16,6 +16,10 @@ import inspect
 logging.getLogger().setLevel(logging.INFO)
 
 
+def log(*args, **kwargs):
+    logging.info(*args, **kwargs)
+
+
 def detect_device():
     device = "cpu"
     if torch.cuda.is_available():
@@ -50,7 +54,7 @@ class DataLoader:
         self.data = torch.tensor(tokenizer.encode(text))
         if device:
             self.data = self.data.to(device)
-        logging.info(f"Loaded {self.data.size(0)} tokens.")
+        log(f"Loaded {self.data.size(0)} tokens.")
         self.n_tokens = self.data.size(0)
         self.batch_size = batch_size
         self.block_size = block_size
@@ -100,17 +104,17 @@ def get_optimizer(
         {"params": decay_params, "weight_decay": weight_decay},
         {"params": nodecay_params, "weight_decay": 0.0},
     ]
-    logging.info(
+    log(
         f"Using weight decay of {weight_decay} for {len(decay_params)} tensors ({sum([p.numel() for p in decay_params])} parameters)"
     )
-    logging.info(
+    log(
         f"Using no weight decay for {len(nodecay_params)} tensors ({sum([p.numel() for p in nodecay_params])} parameters)"
     )
     use_fused = (
         "cuda" in device and "fused" in inspect.signature(torch.optim.AdamW).parameters
     )
     if use_fused:
-        logging.info("Using fused version of the optimizer")
+        log("Using fused version of the optimizer")
     optimizer = torch.optim.AdamW(
         optim_groups,
         lr=1e-8,
@@ -139,16 +143,16 @@ if __name__ == "__main__":
         if torch.cuda.is_available():
             torch.cuda.manual_seed(train_config.seed)
 
-    logging.info(f"Using {device=}")
+    log(f"Using {device=}")
 
     torch.set_float32_matmul_precision(train_config.float32_matmul_precision)
 
     tokenizer = tiktoken.get_encoding("gpt2")
     # gpt = GPT.from_pretrained("gpt2")
     gpt = GPT(model_config)
-    logging.info("compiling torch model...")
+    log("compiling torch model...")
     gpt = torch.compile(gpt)
-    logging.info(f"{gpt.config=}")
+    log(f"{gpt.config=}")
 
     micro_batch_size = train_config.micro_batch_size
     assert (
@@ -159,8 +163,8 @@ if __name__ == "__main__":
     gradient_accum_batch_size = train_config.tokens_per_batch // (
         model_config.block_size * train_config.micro_batch_size
     )
-    logging.info(f"found {count_params(gpt)} parameters")
-    logging.info(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
+    log(f"found {count_params(gpt)} parameters")
+    log(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
     gpt.to(device)
 
     data_loader = DataLoader(
@@ -169,7 +173,7 @@ if __name__ == "__main__":
         batch_size=micro_batch_size,
         block_size=gpt.config.block_size,
     )
-    logging.info(f"Will train for {n_steps} steps")
+    log(f"Will train for {n_steps} steps")
     optimizer = get_optimizer(optimizer_config, gpt, device=device)
     for step in range(n_steps):
         time0 = time.time()
@@ -199,7 +203,7 @@ if __name__ == "__main__":
         log_payload = dict(
             lr=lr, loss=total_loss, throughput=throughput, gradient_norm=gradient_norm
         )
-        logging.info(
+        log(
             f"step {step:3d} took {total_time*1000:.2f} millis | "
             + " | ".join(
                 [
