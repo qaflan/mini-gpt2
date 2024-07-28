@@ -16,3 +16,6 @@ check: black mypy
 
 test:
 	pytest .
+
+run:
+	python3 train_gpt2.py
