@@ -169,6 +169,7 @@ if __name__ == "__main__":
         batch_size=micro_batch_size,
         block_size=gpt.config.block_size,
     )
+    logging.info(f"Will train for {n_steps} steps")
     optimizer = get_optimizer(optimizer_config, gpt, device=device)
     for step in range(n_steps):
         time0 = time.time()
