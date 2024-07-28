@@ -131,6 +131,7 @@ if __name__ == "__main__":
         betas=optimizer_config.betas,
         eps=optimizer_config.eps,
     )
+    for step in range(n_steps):
         x, y = data_loader.next_batch()
         time0 = time.time()
         x = x.to(device)
@@ -151,8 +152,21 @@ if __name__ == "__main__":
         time1 = time.time()
         total_time = time1 - time0
         throughput = (train_config.batch_size * gpt.config.block_size) / total_time
+        log_payload = dict(
+            lr=lr, loss=loss.item(), throughput=throughput, gradient_norm=gradient_norm
+        )
+        if step % 50 == 0:
+            logging.info(
+                f"step {step:3d} took {total_time*1000:.2f} millis | "
+                + " | ".join(
+                    [
+                        f"{k}={v:.4e}" if k == "lr" else f"{k}={v:.2f}"
+                        for k, v in log_payload.items()
+                    ]
+                )
+            )
         if USE_WANDB:
-            wandb.log(dict(loss=loss.item(), throughput=throughput))
+            wandb.log(log_payload)
 
     # seed_text = "Hello, I am a language model,"
     # gpt.eval()
