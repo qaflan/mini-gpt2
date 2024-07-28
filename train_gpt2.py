@@ -1,5 +1,8 @@
 # for backward-compatibility with python<3.10
 from __future__ import annotations
+
+from gpt import GPT
+
 import tiktoken
 import logging
 from configs import GPTConfig, GPTTrainConfig, OptimizerConfig, Config
@@ -11,7 +14,6 @@ import inspect
 
 
 logging.getLogger().setLevel(logging.INFO)
-from gpt import GPT, GPTGenerator
 
 
 def detect_device():
