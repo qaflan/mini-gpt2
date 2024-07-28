@@ -84,7 +84,7 @@ def get_lr_for_step(optimizer_config: OptimizerConfig, step: int) -> float:
 
 
 if __name__ == "__main__":
-    USE_WANDB = False
+    USE_WANDB = True
     train_config = GPTTrainConfig()
     optimizer_config = OptimizerConfig()
     model_config = GPTConfig(vocab_size=50304)
