@@ -7,6 +7,8 @@ import torch
 import time
 import wandb
 import math
+import inspect
+
 
 logging.getLogger().setLevel(logging.INFO)
 from gpt import GPT, GPTGenerator
@@ -83,7 +85,9 @@ def get_lr_for_step(optimizer_config: OptimizerConfig, step: int) -> float:
     return min_lr + coeff * (max_lr - min_lr)
 
 
-def get_optimizer(optimizer_config: OptimizerConfig, model: torch.nn.Module):
+def get_optimizer(
+    optimizer_config: OptimizerConfig, model: torch.nn.Module, device: str
+):
     param_dict = {
         param_name: p for param_name, p in model.named_parameters() if p.requires_grad
     }
@@ -100,11 +104,17 @@ def get_optimizer(optimizer_config: OptimizerConfig, model: torch.nn.Module):
     logging.info(
         f"Using no weight decay for {len(nodecay_params)} tensors ({sum([p.numel() for p in nodecay_params])} parameters)"
     )
+    use_fused = (
+        "cuda" == device and "fused" in inspect.signature(torch.optim.AdamW).parameters
+    )
+    if use_fused:
+        logging.info("Using fused version of the optimizer")
     optimizer = torch.optim.AdamW(
         optim_groups,
         lr=1e-8,
         betas=optimizer_config.betas,
         eps=optimizer_config.eps,
+        fused=use_fused,
     )
     return optimizer
 
@@ -149,7 +159,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         block_size=block_size,
     )
-    optimizer = get_optimizer(optimizer_config, gpt)
+    optimizer = get_optimizer(optimizer_config, gpt, device=device)
     for step in range(n_steps):
         x, y = data_loader.next_batch()
         time0 = time.time()
