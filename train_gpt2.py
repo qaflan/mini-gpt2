@@ -173,14 +173,13 @@ def train(USE_WANDB=False):
 
     torch.set_float32_matmul_precision(train_config.float32_matmul_precision)
 
-    tokenizer = tiktoken.get_encoding("gpt2")
+    # tokenizer = tiktoken.get_encoding("gpt2")
     # gpt = GPT.from_pretrained("gpt2")
     gpt = GPT(model_config)
     gpt.to(device)
     log("compiling torch model...")
     gpt = torch.compile(gpt)
     log(f"{gpt.config=}")
-
     micro_batch_size = train_config.micro_batch_size
     data_loader = DataLoader(
         file_name="input.txt",
@@ -204,14 +203,8 @@ def train(USE_WANDB=False):
     log(f"will use {gradient_accum_batch_size} gradient accumulation steps")
     log(f"found {count_params(gpt)} parameters")
     log(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
-    gpt.to(device)
 
-    data_loader = DataLoader(
-        file_name="input.txt",
-        model_name="gpt2",
-        batch_size=micro_batch_size,
-        block_size=gpt.config.block_size,
-    )
+    n_steps = 10
     log(f"Will train for {n_steps} steps")
     optimizer = get_optimizer(optimizer_config, gpt, device=device)
     device_type = "cuda" if "cuda" in device else device
@@ -244,7 +237,6 @@ def train(USE_WANDB=False):
         torch.cuda.synchronize()
         time1 = time.time()
         total_time = time1 - time0
-        assert  train_config.tokens_per_batch == train_config.micro_batch_size * block_size * WORLD_SIZE * gradient_accum_batch_size
         throughput = train_config.tokens_per_batch / total_time
         log_payload = dict(
             lr=lr, loss=total_loss, throughput=throughput, gradient_norm=gradient_norm
@@ -271,6 +263,6 @@ def train(USE_WANDB=False):
 
 
 if __name__ == "__main__":
-    train(USE_WANDB=True)
+    train(USE_WANDB=False)
     if IS_DDP_RUN:
         dist.destroy_process_group()
