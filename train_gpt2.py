@@ -107,7 +107,7 @@ def get_optimizer(
         f"Using no weight decay for {len(nodecay_params)} tensors ({sum([p.numel() for p in nodecay_params])} parameters)"
     )
     use_fused = (
-        "cuda" == device and "fused" in inspect.signature(torch.optim.AdamW).parameters
+        "cuda" in device and "fused" in inspect.signature(torch.optim.AdamW).parameters
     )
     if use_fused:
         logging.info("Using fused version of the optimizer")
