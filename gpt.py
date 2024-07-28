@@ -3,7 +3,6 @@ from configs import GPTConfig
 import torch
 from torch.nn import functional as F
 import torch.nn as nn
-import math
 
 
 class CausalSelfAttention(nn.Module):
