@@ -45,6 +45,7 @@ class DataLoader:
         if device:
             self.data = self.data.to(device)
         logging.info(f"Loaded {self.data.size(0)} tokens.")
+        self.n_tokens = self.data.size(0)
         self.batch_size = batch_size
         self.block_size = block_size
         self.current_pos = 0
@@ -94,6 +95,8 @@ if __name__ == "__main__":
         batch_size=batch_size,
         block_size=block_size,
     )
+    n_iterations = 10
+    n_steps = n_iterations * (data_loader.n_tokens // train_config.batch_size)
     optimizer = torch.optim.AdamW(gpt.parameters(), lr=train_config.learning_rate)
     for i in range(n_steps):
         x, y = data_loader.next_batch()
