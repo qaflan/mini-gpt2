@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Tuple
 
 
 @dataclass
@@ -15,10 +16,27 @@ class GPTTrainConfig:
     batch_size: int = 18
     seed: int = 1337
     float32_matmul_precision: str = "high"
-    learning_rate: float = 3e-4
+
+
+@dataclass
+class OptimizerConfig:
+    betas: Tuple[float, float] = (
+        0.9,
+        0.95,
+    )
+    eps: float = 1e-8
+    clip_grad_max_norm: float = 1.0
+    warmup_steps: int = 10
+    max_lr: float = 6e-4
+    min_lr: float = field(init=False)
+    max_steps: int = 50
+
+    def __post_init__(self):
+        self.min_lr = self.max_lr * 0.1
 
 
 @dataclass
 class Config:
     model_config: GPTConfig
+    optimizer_config: OptimizerConfig
     train_config: GPTTrainConfig

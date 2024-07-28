@@ -2,10 +2,11 @@
 from __future__ import annotations
 import tiktoken
 import logging
-from configs import GPTConfig, GPTTrainConfig, Config
+from configs import GPTConfig, GPTTrainConfig, OptimizerConfig, Config
 import torch
 import time
 import wandb
+import math
 
 logging.getLogger().setLevel(logging.INFO)
 from gpt import GPT, GPTGenerator
@@ -63,10 +64,35 @@ class DataLoader:
         return x, y
 
 
+def get_lr_for_step(optimizer_config: OptimizerConfig, step: int) -> float:
+    # step: int, warmup_steps: int, min_lr: float, max_lr: float, max_steps: int
+    warmup_steps = optimizer_config.warmup_steps
+    max_lr = optimizer_config.max_lr
+    min_lr = optimizer_config.min_lr
+    max_steps = optimizer_config.max_steps
+    if step < warmup_steps:
+        return (
+            max_lr * (step + 1) / warmup_steps
+        )  # linearly increases the lr so that at `warmup_steps` the value is `max_lr``
+    if step > max_steps:
+        return min_lr
+
+    decay_ratio = (step - warmup_steps) / (max_steps - warmup_steps)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    return min_lr + coeff * (max_lr - min_lr)
+
+
 if __name__ == "__main__":
     USE_WANDB = False
     train_config = GPTTrainConfig()
+    optimizer_config = OptimizerConfig()
     model_config = GPTConfig(vocab_size=50304)
+    config = Config(
+        model_config=model_config,
+        train_config=train_config,
+        optimizer_config=optimizer_config,
+    )
     if USE_WANDB:
         wandb.init(project="gpt2", name="debug GPT Train 10 epochs", config=config)
     device = detect_device()
@@ -99,8 +125,12 @@ if __name__ == "__main__":
     )
     n_iterations = 10
     n_steps = n_iterations * (data_loader.n_tokens // train_config.batch_size)
-    optimizer = torch.optim.AdamW(gpt.parameters(), lr=train_config.learning_rate)
-    for i in range(n_steps):
+    optimizer = torch.optim.AdamW(
+        gpt.parameters(),
+        lr=1e-8,
+        betas=optimizer_config.betas,
+        eps=optimizer_config.eps,
+    )
         x, y = data_loader.next_batch()
         time0 = time.time()
         x = x.to(device)
@@ -109,6 +139,13 @@ if __name__ == "__main__":
         with torch.autocast(device_type=device, dtype=torch.bfloat16):
             logits, loss = gpt(x, y)
         loss.backward()
+
+        gradient_norm = torch.nn.utils.clip_grad_norm_(
+            gpt.parameters(), max_norm=optimizer_config.clip_grad_max_norm
+        )
+        lr = get_lr_for_step(optimizer_config, step=step)
+        for g in optimizer.param_groups:
+            g["lr"] = lr
         optimizer.step()
         torch.cuda.synchronize()
         time1 = time.time()
