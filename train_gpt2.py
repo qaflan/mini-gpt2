@@ -5,6 +5,7 @@ import logging
 from configs import GPTConfig, GPTTrainConfig, Config
 import torch
 import time
+import wandb
 
 logging.getLogger().setLevel(logging.INFO)
 from gpt import GPT, GPTGenerator
@@ -66,6 +67,7 @@ if __name__ == "__main__":
     train_config = GPTTrainConfig()
     model_config = GPTConfig(vocab_size=50304)
     config = Config(model_config=model_config, train_config=train_config)
+    wandb.init(project="gpt2", name="GPT Train 10 epochs", config=config)
     device = detect_device()
     if train_config.seed is not None:
         torch.manual_seed(train_config.seed)
@@ -84,7 +86,6 @@ if __name__ == "__main__":
     logging.info(f"{gpt.config=}")
     block_size = gpt.config.block_size
     batch_size = train_config.batch_size
-    n_steps = train_config.n_steps 
     logging.info(f"found {count_params(gpt)} parameters")
     logging.info(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
     gpt.to(device)
@@ -115,6 +116,7 @@ if __name__ == "__main__":
         logging.info(
             f"step {i:3d}, loss: {loss.item():4f} took {total_time*1000:.2f} milliseconds @ {throughput:.2f} tokens/sec"
         )
+        wandb.log(dict(loss=loss.item(), throughput=throughput))
 
     # seed_text = "Hello, I am a language model,"
     # gpt.eval()
