@@ -83,6 +83,32 @@ def get_lr_for_step(optimizer_config: OptimizerConfig, step: int) -> float:
     return min_lr + coeff * (max_lr - min_lr)
 
 
+def get_optimizer(optimizer_config: OptimizerConfig, model: torch.nn.Module):
+    param_dict = {
+        param_name: p for param_name, p in model.named_parameters() if p.requires_grad
+    }
+    weight_decay = optimizer_config.weight_decay
+    decay_params = [p for p in param_dict.values() if p.dim() >= 2]
+    nodecay_params = [p for p in param_dict.values() if p.dim() < 2]
+    optim_groups = [
+        {"params": decay_params, "weight_decay": weight_decay},
+        {"params": nodecay_params, "weight_decay": 0.0},
+    ]
+    logging.info(
+        f"Using weight decay of {weight_decay} for {len(decay_params)} tensors ({sum([p.numel() for p in decay_params])} parameters)"
+    )
+    logging.info(
+        f"Using no weight decay for {len(nodecay_params)} tensors ({sum([p.numel() for p in nodecay_params])} parameters)"
+    )
+    optimizer = torch.optim.AdamW(
+        optim_groups,
+        lr=1e-8,
+        betas=optimizer_config.betas,
+        eps=optimizer_config.eps,
+    )
+    return optimizer
+
+
 if __name__ == "__main__":
     USE_WANDB = True
     train_config = GPTTrainConfig()
@@ -123,14 +149,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         block_size=block_size,
     )
-    n_iterations = 10
-    n_steps = n_iterations * (data_loader.n_tokens // train_config.batch_size)
-    optimizer = torch.optim.AdamW(
-        gpt.parameters(),
-        lr=1e-8,
-        betas=optimizer_config.betas,
-        eps=optimizer_config.eps,
-    )
+    optimizer = get_optimizer(optimizer_config, gpt)
     for step in range(n_steps):
         x, y = data_loader.next_batch()
         time0 = time.time()

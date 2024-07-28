@@ -24,6 +24,7 @@ class OptimizerConfig:
         0.9,
         0.95,
     )
+    weight_decay: float = 0.1
     eps: float = 1e-8
     clip_grad_max_norm: float = 1.0
     warmup_steps: int = 10
