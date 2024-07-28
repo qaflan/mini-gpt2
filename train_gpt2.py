@@ -149,8 +149,16 @@ if __name__ == "__main__":
     logging.info("compiling torch model...")
     gpt = torch.compile(gpt)
     logging.info(f"{gpt.config=}")
-    block_size = gpt.config.block_size
-    batch_size = train_config.batch_size
+
+    micro_batch_size = train_config.micro_batch_size
+    assert (
+        train_config.tokens_per_batch
+        % (model_config.block_size * train_config.micro_batch_size)
+        == 0
+    )
+    gradient_accum_batch_size = train_config.tokens_per_batch // (
+        model_config.block_size * train_config.micro_batch_size
+    )
     logging.info(f"found {count_params(gpt)} parameters")
     logging.info(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
     gpt.to(device)
@@ -158,8 +166,8 @@ if __name__ == "__main__":
     data_loader = DataLoader(
         file_name="input.txt",
         model_name="gpt2",
-        batch_size=batch_size,
-        block_size=block_size,
+        batch_size=micro_batch_size,
+        block_size=gpt.config.block_size,
     )
     optimizer = get_optimizer(optimizer_config, gpt, device=device)
     for step in range(n_steps):
@@ -168,9 +176,16 @@ if __name__ == "__main__":
         x = x.to(device)
         y = y.to(device)
         optimizer.zero_grad()
-        with torch.autocast(device_type=device, dtype=torch.bfloat16):
-            logits, loss = gpt(x, y)
-        loss.backward()
+        total_loss = 0.0
+        for _ in range(gradient_accum_batch_size):
+            x, y = data_loader.next_batch()
+            x = x.to(device)
+            y = y.to(device)
+            with torch.autocast(device_type=device, dtype=torch.bfloat16):
+                logits, loss = gpt(x, y)
+            loss /= gradient_accum_batch_size
+            total_loss += loss.detach()
+            loss.backward()
 
         gradient_norm = torch.nn.utils.clip_grad_norm_(
             gpt.parameters(), max_norm=optimizer_config.clip_grad_max_norm
@@ -182,20 +197,19 @@ if __name__ == "__main__":
         torch.cuda.synchronize()
         time1 = time.time()
         total_time = time1 - time0
-        throughput = (train_config.batch_size * gpt.config.block_size) / total_time
+        throughput = train_config.tokens_per_batch / total_time
         log_payload = dict(
-            lr=lr, loss=loss.item(), throughput=throughput, gradient_norm=gradient_norm
+            lr=lr, loss=total_loss, throughput=throughput, gradient_norm=gradient_norm
         )
-        if step % 50 == 0:
-            logging.info(
-                f"step {step:3d} took {total_time*1000:.2f} millis | "
-                + " | ".join(
-                    [
-                        f"{k}={v:.4e}" if k == "lr" else f"{k}={v:.2f}"
-                        for k, v in log_payload.items()
-                    ]
-                )
+        logging.info(
+            f"step {step:3d} took {total_time*1000:.2f} millis | "
+            + " | ".join(
+                [
+                    f"{k}={v:.4e}" if k == "lr" else f"{k}={v:.2f}"
+                    for k, v in log_payload.items()
+                ]
             )
+        )
         if USE_WANDB:
             wandb.log(log_payload)
 

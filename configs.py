@@ -13,7 +13,8 @@ class GPTConfig:
 
 @dataclass
 class GPTTrainConfig:
-    batch_size: int = 18
+    micro_batch_size: int = 16
+    tokens_per_batch: int = 524288  # 2**19 ~0.5M
     seed: int = 1337
     float32_matmul_precision: str = "high"
 
