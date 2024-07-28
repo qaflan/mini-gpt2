@@ -171,10 +171,7 @@ if __name__ == "__main__":
     )
     optimizer = get_optimizer(optimizer_config, gpt, device=device)
     for step in range(n_steps):
-        x, y = data_loader.next_batch()
         time0 = time.time()
-        x = x.to(device)
-        y = y.to(device)
         optimizer.zero_grad()
         total_loss = 0.0
         for _ in range(gradient_accum_batch_size):
