@@ -16,6 +16,7 @@ class GPTTrainConfig:
     n_steps: int = 20
     seed: int = 1337
     float32_matmul_precision: str = "high"
+    learning_rate: float = 3e-4
 
 
 @dataclass

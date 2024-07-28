@@ -94,7 +94,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         block_size=block_size,
     )
-    optimizer = torch.optim.AdamW(gpt.parameters(), lr=3e-4)
+    optimizer = torch.optim.AdamW(gpt.parameters(), lr=train_config.learning_rate)
     for i in range(n_steps):
         x, y = data_loader.next_batch()
         time0 = time.time()
