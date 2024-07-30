@@ -153,7 +153,6 @@ def train(USE_WANDB=False):
         rank=RANK,
         world_size=WORLD_SIZE,
         split="train",
-        limit_files=3,
     )
 
     if IS_DDP_RUN:
