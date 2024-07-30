@@ -1,5 +1,7 @@
 ruff
+datasets
 mypy
 jupyter
 pytest
 matplotlib
+tqdm
