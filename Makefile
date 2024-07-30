@@ -7,12 +7,13 @@ install-req:
 install: install-req install-dev
 
 format:
+	ruff check --fix .
 	ruff format .
 
 mypy:
 	mypy .
 
-check: black mypy
+lint: format mypy
 
 test:
 	pytest .
