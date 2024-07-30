@@ -38,6 +38,11 @@ class OptimizerConfig:
 
 
 @dataclass
+class GPTDataConfig:
+    path: str = "fineweb_edu"
+
+
+@dataclass
 class Config:
     model_config: GPTConfig
     optimizer_config: OptimizerConfig
