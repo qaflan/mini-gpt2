@@ -1,11 +1,12 @@
 # for backward-compatibility with python<3.10
 from __future__ import annotations
 
+from dataloaders import DataLoader
 from gpt import GPT
 
-import tiktoken
+import os
 import logging
-from configs import GPTConfig, GPTTrainConfig, OptimizerConfig, Config
+from configs import GPTConfig, GPTDataConfig, GPTTrainConfig, OptimizerConfig, Config
 import torch
 import time
 import wandb
@@ -15,7 +16,6 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 logging.getLogger().setLevel(logging.INFO)
-import os
 
 IS_DDP_RUN = "RANK" in os.environ
 if IS_DDP_RUN:
@@ -58,43 +58,6 @@ def count_params(model):
 def get_memory_size(model):
     n_bytes = sum([p.nelement() * p.element_size() for p in model.parameters()])
     return n_bytes
-
-
-class DataLoader:
-    def __init__(
-        self,
-        file_name: str,
-        batch_size: int,
-        block_size: int,
-        model_name: str = "gpt2",
-        device: str | None = None,
-        rank: int = 0,
-        world_size: int = 1,
-    ) -> None:
-        with open(file_name, "r") as f:
-            text = f.read()
-        tokenizer = tiktoken.get_encoding(model_name)
-        self.data = torch.tensor(tokenizer.encode(text))
-        if device:
-            self.data = self.data.to(device)
-        log(f"Loaded {self.data.size(0)} tokens.")
-        self.n_tokens = self.data.size(0)
-        self.batch_size = batch_size
-        self.block_size = block_size
-        self.rank = rank
-        self.world_size = world_size
-        self.current_pos = self.rank * self.batch_size * self.block_size
-
-    def next_batch(self):
-        B = self.batch_size
-        T = self.block_size
-        buf = self.data[self.current_pos : B * T + self.current_pos + 1]
-        x = buf[:-1].view(-1, T)
-        y = buf[1:].view(-1, T)
-        self.current_pos += B * T * self.world_size
-        if self.current_pos + (B * T * self.world_size + 1) > self.data.size(0):
-            self.current_pos = self.rank * self.batch_size * self.block_size
-        return x, y
 
 
 def get_lr_for_step(optimizer_config: OptimizerConfig, step: int) -> float:
@@ -151,10 +114,12 @@ def get_optimizer(
 
 
 def train(USE_WANDB=False):
+    data_config = GPTDataConfig()
     train_config = GPTTrainConfig()
     optimizer_config = OptimizerConfig()
     model_config = GPTConfig(vocab_size=50304)
     config = Config(
+        data_config=data_config,
         model_config=model_config,
         train_config=train_config,
         optimizer_config=optimizer_config,
@@ -181,14 +146,16 @@ def train(USE_WANDB=False):
     gpt = torch.compile(gpt)
     log(f"{gpt.config=}")
     micro_batch_size = train_config.micro_batch_size
-    data_loader = DataLoader(
-        file_name="input.txt",
-        model_name="gpt2",
+    train_loader = DataLoader(
+        path=data_config.path,
         batch_size=micro_batch_size,
         block_size=gpt.config.block_size,
         rank=RANK,
         world_size=WORLD_SIZE,
+        split="train",
+        limit_files=3,
     )
+
     if IS_DDP_RUN:
         gpt = DDP(gpt, device_ids=[LOCAL_RANK])
 
@@ -213,7 +180,7 @@ def train(USE_WANDB=False):
         optimizer.zero_grad()
         total_loss = 0.0
         for microstep in range(gradient_accum_batch_size):
-            x, y = data_loader.next_batch()
+            x, y = train_loader.next_batch()
             x = x.to(device)
             y = y.to(device)
             with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
@@ -225,7 +192,9 @@ def train(USE_WANDB=False):
                     microstep == gradient_accum_batch_size - 1
                 )
             loss.backward()
-        dist.all_reduce(total_loss, op=dist.ReduceOp.AVG)
+
+        if IS_DDP_RUN:
+            dist.all_reduce(total_loss, op=dist.ReduceOp.AVG)
 
         gradient_norm = torch.nn.utils.clip_grad_norm_(
             gpt.parameters(), max_norm=optimizer_config.clip_grad_max_norm

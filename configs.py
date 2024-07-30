@@ -44,6 +44,7 @@ class GPTDataConfig:
 
 @dataclass
 class Config:
+    data_config: GPTDataConfig
     model_config: GPTConfig
     optimizer_config: OptimizerConfig
     train_config: GPTTrainConfig
