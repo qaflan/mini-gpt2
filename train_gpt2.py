@@ -180,9 +180,9 @@ def train(USE_WANDB=False):
         )
     device = detect_device()
     if train_config.seed is not None:
-        torch.manual_seed(train_config.seed)
+        torch.manual_seed(train_config.seed + RANK)
         if torch.cuda.is_available():
-            torch.cuda.manual_seed(train_config.seed)
+            torch.cuda.manual_seed(train_config.seed + RANK)
 
     logging.info(f"Using {device=}")
 
