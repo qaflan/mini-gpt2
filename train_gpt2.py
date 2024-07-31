@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataloaders import DataLoader
 from gpt import GPT
-
+from tqdm import tqdm
 import os
 import logging
 from configs import GPTConfig, GPTDataConfig, GPTTrainConfig, OptimizerConfig, Config
@@ -113,6 +113,25 @@ def get_optimizer(
     return optimizer
 
 
+def train_step(model, data_loader, gradient_accum_batch_size, device_type, device):
+    total_loss = 0.0
+    for microstep in range(gradient_accum_batch_size):
+        x, y = data_loader.next_batch()
+        x = x.to(device)
+        y = y.to(device)
+        with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
+            logits, loss = model(x, y)
+        loss /= gradient_accum_batch_size
+        total_loss += loss.detach()
+        if IS_DDP_RUN:
+            model.require_backward_grad_sync = (
+                microstep == gradient_accum_batch_size - 1
+            )
+        loss.backward()
+    if IS_DDP_RUN:
+        dist.all_reduce(total_loss, op=dist.ReduceOp.AVG)
+    return total_loss
+
 def train(USE_WANDB=False):
     data_config = GPTDataConfig()
     train_config = GPTTrainConfig()
@@ -176,28 +195,16 @@ def train(USE_WANDB=False):
     device_type = "cuda" if "cuda" in device else device
     for step in range(n_steps):
         time0 = time.time()
+        gpt.train()
         optimizer.zero_grad()
-        total_loss = 0.0
-        for microstep in range(gradient_accum_batch_size):
-            x, y = train_loader.next_batch()
-            x = x.to(device)
-            y = y.to(device)
-            with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-                logits, loss = gpt(x, y)
-            loss /= gradient_accum_batch_size
-            total_loss += loss.detach()
-            if IS_DDP_RUN:
-                gpt.require_backward_grad_sync = (
-                    microstep == gradient_accum_batch_size - 1
-                )
-            loss.backward()
-
-        if IS_DDP_RUN:
-            dist.all_reduce(total_loss, op=dist.ReduceOp.AVG)
-
-        gradient_norm = torch.nn.utils.clip_grad_norm_(
-            gpt.parameters(), max_norm=optimizer_config.clip_grad_max_norm
+        total_loss = train_step(
+            model=gpt,
+            data_loader=train_loader,
+            gradient_accum_batch_size=gradient_accum_batch_size,
+            device=device,
+            device_type=device_type,
         )
+
         lr = get_lr_for_step(optimizer_config, step=step)
         for g in optimizer.param_groups:
             g["lr"] = lr
