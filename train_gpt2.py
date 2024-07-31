@@ -301,6 +301,8 @@ def train(USE_WANDB=False):
                     print()
                 print("-" * 100)
 
+    # save the model
+    torch.save(gpt.state_dict(), "state_dict.pt")
 
 
 if __name__ == "__main__":
