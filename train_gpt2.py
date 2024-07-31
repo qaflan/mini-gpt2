@@ -15,10 +15,7 @@ import tiktoken
 import os
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-
-logging.getLogger().setLevel(logging.INFO)
-
-IS_DDP_RUN = "RANK" in os.environ
+from utils import log, IS_DDP_RUN, RANK, WORLD_SIZE, LOCAL_RANK, IS_MASTER
 if IS_DDP_RUN:
     dist.init_process_group(backend="nccl")
     assert torch.cuda.is_available(), "CUDA must be available for ddp run"
@@ -292,7 +289,7 @@ def train(USE_WANDB=False):
         if step % train_config.generate_interval == 0:
             # generate
             seed_text = "Hello, I am a language model,"
-            if RANK == 0:
+            if IS_MASTER:
                 gpt.eval()
                 log("Generateing sample texts")
                 print("-" * 100)
