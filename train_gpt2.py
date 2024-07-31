@@ -230,7 +230,7 @@ def train(USE_WANDB=False):
     log(f"found {count_params(gpt)} parameters")
     log(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
 
-    n_steps = 10
+    n_steps = 100
     log(f"Will train for {n_steps} steps")
     optimizer = get_optimizer(optimizer_config, gpt, device=device)
     device_type = "cuda" if "cuda" in device else device
@@ -297,7 +297,7 @@ def train(USE_WANDB=False):
                 print("-" * 100)
                 torch.manual_seed(42)
                 for sentence in gpt_generator.generate(seed_text, 50, 5):
-                    print(sentence}")
+                    print(sentence)
                     print()
                 print("-" * 100)
 
