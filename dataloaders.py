@@ -27,7 +27,7 @@ class DataLoader:
         world_size: int = 1,
         limit_files: int = -1,
     ) -> None:
-        assert split in ("train", "validation")
+        assert split in ("train", "validation", "val")
 
         files = [f for f in os.listdir(path) if split in f]
         logging.info(f"found {len(files)} file(s) for split {split}. Loading...")
