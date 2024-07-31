@@ -4,7 +4,6 @@ from __future__ import annotations
 from dataloaders import DataLoader
 from gpt import GPT, GPTGenerator
 from tqdm import tqdm
-import os
 import logging
 from configs import GPTConfig, GPTDataConfig, GPTTrainConfig, OptimizerConfig, Config
 import torch
@@ -13,6 +12,7 @@ import wandb
 import math
 import inspect
 import tiktoken
+import os
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -300,6 +300,12 @@ def train(USE_WANDB=False):
                     print(sentence)
                     print()
                 print("-" * 100)
+        if step % train_config.checkpoint_interval == 0:
+            checkpoints_dir = "checkpoints"
+            os.makedirs(checkpoints_dir, exist_ok=True)
+            checkpoint_path = f"{checkpoints_dir}/checkpoint_{step:06}.pt"
+            log(f"saving checkpoint to {checkpoint_path}")
+            torch.save(gpt.state_dict(), checkpoint_path)
 
     # save the model
     torch.save(gpt.state_dict(), "state_dict.pt")
