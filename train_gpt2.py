@@ -142,6 +142,26 @@ def train_step(model, data_loader, gradient_accum_batch_size, device_type, devic
         dist.all_reduce(total_loss, op=dist.ReduceOp.AVG)
     return total_loss
 
+
+@torch.no_grad()
+def eval_step(
+    val_loader: DataLoader, device: str, device_type: str, gpt, val_steps: int
+):
+    val_loader.reset()
+    total_val_loss = 0.0
+    for _ in tqdm(range(val_steps)):
+        x, y = val_loader.next_batch()
+        x = x.to(device)
+        y = y.to(device)
+        with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
+            logits, val_loss = gpt(x, y)
+        total_val_loss += val_loss.detach()
+    if IS_DDP_RUN:
+        dist.all_reduce(total_val_loss, op=dist.ReduceOp.AVG)
+    avg_loss = total_val_loss / val_steps
+    return avg_loss
+
+
 def train(USE_WANDB=False):
     data_config = GPTDataConfig()
     train_config = GPTTrainConfig()
@@ -182,6 +202,14 @@ def train(USE_WANDB=False):
         rank=RANK,
         world_size=WORLD_SIZE,
         split="train",
+    )
+    val_loader = DataLoader(
+        path=data_config.path,
+        batch_size=micro_batch_size,
+        block_size=gpt.config.block_size,
+        rank=RANK,
+        world_size=WORLD_SIZE,
+        split="val",
     )
 
     if IS_DDP_RUN:
@@ -242,13 +270,21 @@ def train(USE_WANDB=False):
         if USE_WANDB:
             log_wandb(log_payload)
 
-    # seed_text = "Hello, I am a language model,"
-    # gpt.eval()
-    # torch.manual_seed(42)
-    # my_generator = GPTGenerator(gpt, tokenizer, device)
-    # for sentence in my_generator.generate(seed_text, 100, 3):
-    #     print(sentence)
-    #     print("_" * 40)
+        if step % train_config.val_interval == 0:
+            # eval
+            log("Evaluating the model...")
+            gpt.eval()
+            val_loss = eval_step(
+                val_loader,
+                device,
+                device_type,
+                gpt,
+                val_steps=train_config.val_microbatch_steps,
+            )
+            log(f"step={step} | val_loss={val_loss.item()}")
+            if USE_WANDB:
+                log_wandb({"val_loss": val_loss.item()})
+        
 
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ class GPTTrainConfig:
     tokens_per_batch: int = 524288  # 2**19 ~0.5M
     seed: int = 1337
     float32_matmul_precision: str = "high"
+    val_interval: int = 100
+    val_microbatch_steps: int = 4000
 
 
 @dataclass
