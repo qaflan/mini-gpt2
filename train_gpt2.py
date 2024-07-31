@@ -16,19 +16,17 @@ import os
 import sys
 
 
-
-
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import log, IS_DDP_RUN, RANK, WORLD_SIZE, LOCAL_RANK, IS_MASTER
 
 
-def set_logging_params()->None:
+def set_logging_params() -> None:
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s %(message)s')
+    formatter = logging.Formatter("%(asctime)s %(message)s")
     handler.setFormatter(formatter)
     root.addHandler(handler)
 
@@ -209,7 +207,7 @@ def train(USE_WANDB=False):
         rank=RANK,
         world_size=WORLD_SIZE,
         split="train",
-        limit_files=data_config.limit_files
+        limit_files=data_config.limit_files,
     )
     val_loader = DataLoader(
         path=data_config.path,
