@@ -23,6 +23,7 @@ class GPTTrainConfig:
     run_name: str = "fineweb-train-full"
     checkpoint_interval: int = 200
 
+
 @dataclass
 class OptimizerConfig:
     betas: Tuple[float, float] = (
