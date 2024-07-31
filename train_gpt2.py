@@ -136,7 +136,7 @@ def train_step(model, data_loader, gradient_accum_batch_size, device_type, devic
         x = x.to(device)
         y = y.to(device)
         with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-            logits, loss = model(x, y)
+            _, loss = model(x, y)
         loss /= gradient_accum_batch_size
         total_loss += loss.detach()
         if IS_DDP_RUN:
@@ -163,7 +163,7 @@ def eval_step(
         x = x.to(device)
         y = y.to(device)
         with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-            logits, val_loss = gpt(x, y)
+            _, val_loss = gpt(x, y)
         total_val_loss += val_loss.detach()
     if IS_DDP_RUN:
         dist.all_reduce(total_val_loss, op=dist.ReduceOp.AVG)
