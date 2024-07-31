@@ -320,5 +320,6 @@ def train(USE_WANDB=False):
 
 if __name__ == "__main__":
     set_logging_params()
+    train(USE_WANDB=True)
     if IS_DDP_RUN:
         dist.destroy_process_group()
