@@ -183,9 +183,7 @@ def train(USE_WANDB=False):
         optimizer_config=optimizer_config,
     )
     if USE_WANDB and IS_MASTER:
-        wandb.init(
-            project="gpt2", name="GPT Train with gradient accumulation", config=config
-        )
+        wandb.init(project="gpt2", name=train_config.run_name, config=config)
     device = detect_device()
     if train_config.seed is not None:
         torch.manual_seed(train_config.seed + RANK)
