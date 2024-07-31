@@ -1,7 +1,7 @@
 import tiktoken
 import torch
 import os
-from utils import log
+from utils import log, IS_MASTER
 
 import numpy as np
 from tqdm import tqdm
@@ -33,9 +33,9 @@ class DataLoader:
                 f"will use a max of {limit_files} file(s) since it is explicitly asked."
             )
             files = files[:limit_files]
-        self.shards = [
-            load_np(os.path.join(path, file_name)) for file_name in tqdm(files)
-        ]
+        if IS_MASTER:
+            files = tqdm(files)
+        self.shards = [load_np(os.path.join(path, file_name)) for file_name in files]
         log("done loading")
         self.batch_size = batch_size
         self.block_size = block_size
