@@ -212,7 +212,7 @@ def train(USE_WANDB=False):
         world_size=WORLD_SIZE,
         split="val",
     )
-    
+
     gpt_generator = GPTGenerator(gpt, tokenizer, device)
 
     if IS_DDP_RUN:
@@ -287,7 +287,7 @@ def train(USE_WANDB=False):
             log(f"step={step} | val_loss={val_loss.item()}")
             if USE_WANDB:
                 log_wandb({"val_loss": val_loss.item()})
-        
+
         if step % train_config.generate_interval == 0:
             # generate
             seed_text = "Hello, I am a language model,"
