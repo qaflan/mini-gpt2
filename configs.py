@@ -19,6 +19,7 @@ class GPTTrainConfig:
     float32_matmul_precision: str = "high"
     val_interval: int = 100
     val_microbatch_steps: int = 4000
+    generate_interval: int = 200
 
 
 @dataclass

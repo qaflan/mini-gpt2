@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataloaders import DataLoader
-from gpt import GPT
+from gpt import GPT, GPTGenerator
 from tqdm import tqdm
 import os
 import logging
@@ -12,6 +12,7 @@ import time
 import wandb
 import math
 import inspect
+import tiktoken
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -187,7 +188,7 @@ def train(USE_WANDB=False):
 
     torch.set_float32_matmul_precision(train_config.float32_matmul_precision)
 
-    # tokenizer = tiktoken.get_encoding("gpt2")
+    tokenizer = tiktoken.get_encoding("gpt2")
     # gpt = GPT.from_pretrained("gpt2")
     gpt = GPT(model_config)
     gpt.to(device)
@@ -211,6 +212,8 @@ def train(USE_WANDB=False):
         world_size=WORLD_SIZE,
         split="val",
     )
+    
+    gpt_generator = GPTGenerator(gpt, tokenizer, device)
 
     if IS_DDP_RUN:
         gpt = DDP(gpt, device_ids=[LOCAL_RANK])
@@ -285,6 +288,19 @@ def train(USE_WANDB=False):
             if USE_WANDB:
                 log_wandb({"val_loss": val_loss.item()})
         
+        if step % train_config.generate_interval == 0:
+            # generate
+            seed_text = "Hello, I am a language model,"
+            if RANK == 0:
+                gpt.eval()
+                log("Generateing sample texts")
+                print("-" * 100)
+                torch.manual_seed(42)
+                for sentence in gpt_generator.generate(seed_text, 50, 5):
+                    print(sentence}")
+                    print()
+                print("-" * 100)
+
 
 
 if __name__ == "__main__":
