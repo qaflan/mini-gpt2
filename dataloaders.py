@@ -44,8 +44,7 @@ class DataLoader:
         self.block_size = block_size
         self.rank = rank
         self.world_size = world_size
-        self.current_shard_ix = 0
-        self.current_pos = self.rank * self.batch_size * self.block_size
+        self.reset()
 
     def next_batch(self):
         B = self.batch_size
@@ -56,9 +55,16 @@ class DataLoader:
         y = buf[1:].view(-1, T)
         self.current_pos += B * T * self.world_size
         if self.current_pos + (B * T * self.world_size + 1) > current_shard.size(0):
-            self.current_pos = self.rank * self.batch_size * self.block_size
+            self._reset_pos()
             self.current_shard_ix = (self.current_shard_ix + 1) % len(self.shards)
         return x, y
+
+    def reset(self):
+        self._reset_pos()
+        self.current_shard_ix = 0
+
+    def _reset_pos(self):
+        self.current_pos = self.rank * self.batch_size * self.block_size
 
 
 class DataLoaderTokenizer:
