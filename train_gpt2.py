@@ -203,6 +203,7 @@ def train(USE_WANDB=False):
         rank=RANK,
         world_size=WORLD_SIZE,
         split="train",
+        limit_files=data_config.limit_files,
     )
     val_loader = DataLoader(
         path=data_config.path,
