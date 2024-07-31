@@ -13,9 +13,26 @@ import math
 import inspect
 import tiktoken
 import os
+import sys
+
+
+
+
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import log, IS_DDP_RUN, RANK, WORLD_SIZE, LOCAL_RANK, IS_MASTER
+
+
+def set_logging_params()->None:
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+
+
 if IS_DDP_RUN:
     dist.init_process_group(backend="nccl")
     assert torch.cuda.is_available(), "CUDA must be available for ddp run"
@@ -310,6 +327,6 @@ def train(USE_WANDB=False):
 
 
 if __name__ == "__main__":
-    train(USE_WANDB=False)
+    set_logging_params()
     if IS_DDP_RUN:
         dist.destroy_process_group()
