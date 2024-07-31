@@ -113,6 +113,16 @@ def get_optimizer(
     return optimizer
 
 
+def optimize_step(model, optimizer, clip_grad_max_norm, lr):
+    gradient_norm = torch.nn.utils.clip_grad_norm_(
+        model.parameters(), max_norm=clip_grad_max_norm
+    )
+    for g in optimizer.param_groups:
+        g["lr"] = lr
+    optimizer.step()
+    return gradient_norm
+
+
 def train_step(model, data_loader, gradient_accum_batch_size, device_type, device):
     total_loss = 0.0
     for microstep in range(gradient_accum_batch_size):
@@ -206,11 +216,15 @@ def train(USE_WANDB=False):
         )
 
         lr = get_lr_for_step(optimizer_config, step=step)
-        for g in optimizer.param_groups:
-            g["lr"] = lr
-        optimizer.step()
+        gradient_norm = optimize_step(
+            clip_grad_max_norm=optimizer_config.clip_grad_max_norm,
+            model=gpt,
+            optimizer=optimizer,
+            lr=lr,
+        )
         torch.cuda.synchronize()
         time1 = time.time()
+
         total_time = time1 - time0
         throughput = train_config.tokens_per_batch / total_time
         log_payload = dict(
