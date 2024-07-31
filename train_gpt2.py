@@ -155,7 +155,10 @@ def eval_step(
 ):
     val_loader.reset()
     total_val_loss = 0.0
-    for _ in tqdm(range(val_steps)):
+    steps = range(val_steps)
+    if IS_MASTER:
+        steps = tqdm(steps)
+    for _ in steps:
         x, y = val_loader.next_batch()
         x = x.to(device)
         y = y.to(device)
