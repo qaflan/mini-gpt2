@@ -28,10 +28,10 @@ class OptimizerConfig:
     weight_decay: float = 0.1
     eps: float = 1e-8
     clip_grad_max_norm: float = 1.0
-    warmup_steps: int = 10
+    warmup_steps: int = 715
     max_lr: float = 6e-4
     min_lr: float = field(init=False)
-    max_steps: int = 50
+    max_steps: int = 19073 # 10B tokens / tokens_per_batch
 
     def __post_init__(self):
         self.min_lr = self.max_lr * 0.1
