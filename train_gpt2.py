@@ -235,7 +235,7 @@ def train(USE_WANDB=False):
     log(f"found {count_params(gpt)} parameters")
     log(f"parameters size ~ {get_memory_size(gpt) / 1024 / 1024:.2f} MB")
 
-    n_steps = 100
+    n_steps = optimizer_config.max_steps
     log(f"Will train for {n_steps} steps")
     optimizer = get_optimizer(optimizer_config, gpt, device=device)
     device_type = "cuda" if "cuda" in device else device
