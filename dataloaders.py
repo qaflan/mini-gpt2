@@ -1,13 +1,10 @@
 import tiktoken
 import torch
 import os
-
+from utils import log
 
 import numpy as np
-import logging
 from tqdm import tqdm
-
-logging.getLogger().setLevel(logging.INFO)
 
 
 def load_np(file: str):
@@ -30,16 +27,16 @@ class DataLoader:
         assert split in ("train", "validation", "val")
 
         files = [f for f in os.listdir(path) if split in f]
-        logging.info(f"found {len(files)} file(s) for split {split}. Loading...")
+        log(f"found {len(files)} file(s) for split {split}. Loading...")
         if limit_files > 0:
-            logging.info(
+            log(
                 f"will use a max of {limit_files} file(s) since it is explicitly asked."
             )
             files = files[:limit_files]
         self.shards = [
             load_np(os.path.join(path, file_name)) for file_name in tqdm(files)
         ]
-        logging.info("done loading")
+        log("done loading")
         self.batch_size = batch_size
         self.block_size = block_size
         self.rank = rank
@@ -84,7 +81,7 @@ class DataLoaderTokenizer:
         self.data = torch.tensor(tokenizer.encode(text))
         if device:
             self.data = self.data.to(device)
-        logging.info(f"Loaded {self.data.size(0)} tokens.")
+        log(f"Loaded {self.data.size(0)} tokens.")
         self.n_tokens = self.data.size(0)
         self.batch_size = batch_size
         self.block_size = block_size
