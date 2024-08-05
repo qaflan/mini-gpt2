@@ -133,14 +133,14 @@ def train_step(model, data_loader, gradient_accum_batch_size, device_type, devic
         x, y = data_loader.next_batch()
         x = x.to(device)
         y = y.to(device)
-        with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-            _, loss = model(x, y)
-        loss /= gradient_accum_batch_size
-        total_loss += loss.detach()
         if IS_DDP_RUN:
             model.require_backward_grad_sync = (
                 microstep == gradient_accum_batch_size - 1
             )
+        with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
+            _, loss = model(x, y)
+        loss /= gradient_accum_batch_size
+        total_loss += loss.detach()
         loss.backward()
     if IS_DDP_RUN:
         dist.all_reduce(total_loss, op=dist.ReduceOp.AVG)
