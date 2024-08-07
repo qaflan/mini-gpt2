@@ -1,7 +1,7 @@
 # for backward-compatibility with python<3.10
 from __future__ import annotations
 
-from dataloaders import DataLoader
+from dataloaders import DataLoader, HellaSwagLoader
 from gpt import GPT, GPTGenerator
 from tqdm import tqdm
 import logging
@@ -15,10 +15,18 @@ import tiktoken
 import os
 import sys
 
-
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-from utils import log, IS_DDP_RUN, RANK, WORLD_SIZE, LOCAL_RANK, IS_MASTER
+from utils import (
+    detect_device,
+    log,
+    IS_DDP_RUN,
+    RANK,
+    WORLD_SIZE,
+    LOCAL_RANK,
+    IS_MASTER,
+)
+from evaluate import evaluate_hellaswag
 
 
 def set_logging_params() -> None:
@@ -39,19 +47,6 @@ if IS_DDP_RUN:
 def log_wandb(*args, **kwargs):
     if IS_MASTER:
         wandb.log(*args, **kwargs)
-
-
-def detect_device():
-    if IS_DDP_RUN:
-        device = f"cuda:{RANK}"
-        torch.cuda.set_device(device)
-        return device
-    device = "cpu"
-    if torch.cuda.is_available():
-        device = "cuda"
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        device = "mps"
-    return device
 
 
 def count_params(model):
@@ -217,6 +212,9 @@ def train(USE_WANDB=False):
         world_size=WORLD_SIZE,
         split="val",
     )
+    hellaswag_loader = HellaSwagLoader(
+        tokenizer=tokenizer, path="Rowan/hellaswag", split="validation",rank=RANK, world_size=WORLD_SIZE
+    )
 
     gpt_generator = GPTGenerator(gpt, tokenizer, device)
 
@@ -278,20 +276,20 @@ def train(USE_WANDB=False):
         if USE_WANDB:
             log_wandb(log_payload)
 
-        if step % train_config.val_interval == 0:
-            # eval
-            log("Evaluating the model...")
-            gpt.eval()
-            val_loss = eval_step(
-                val_loader,
-                device,
-                device_type,
-                gpt,
-                val_steps=train_config.val_microbatch_steps,
-            )
-            log(f"step={step} | val_loss={val_loss.item()}")
-            if USE_WANDB:
-                log_wandb({"val_loss": val_loss.item()})
+        # if step % train_config.val_interval == 0:
+        #     # eval
+        #     log("Evaluating the model...")
+        #     gpt.eval()
+        #     val_loss = eval_step(
+        #         val_loader,
+        #         device,
+        #         device_type,
+        #         gpt,
+        #         val_steps=train_config.val_microbatch_steps,
+        #     )
+        #     log(f"step={step} | val_loss={val_loss.item()}")
+        #     if USE_WANDB:
+        #         log_wandb({"val_loss": val_loss.item()})
 
         if step % train_config.generate_interval == 0:
             # generate
@@ -305,6 +303,11 @@ def train(USE_WANDB=False):
                     print(sentence)
                     print()
                 print("-" * 100)
+        if step % train_config.hellaswag_interval == 0:
+            gpt.eval()
+            acc = evaluate_hellaswag(hellaswag_loader, gpt, device=device)
+            log(f"Hellaswag acc {step=}, {acc=}")
+            import sys; sys.exit(0)
         if step % train_config.checkpoint_interval == 0:
             checkpoints_dir = "checkpoints"
             os.makedirs(checkpoints_dir, exist_ok=True)
@@ -318,6 +321,6 @@ def train(USE_WANDB=False):
 
 if __name__ == "__main__":
     set_logging_params()
-    train(USE_WANDB=True)
+    train(USE_WANDB=False)
     if IS_DDP_RUN:
         dist.destroy_process_group()

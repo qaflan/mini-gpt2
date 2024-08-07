@@ -20,8 +20,9 @@ class GPTTrainConfig:
     val_microbatch_steps: int = 500
     val_interval: int = 300
     generate_interval: int = 300
-    run_name: str = "fineweb-train-full"
+    run_name: str = "fineweb-train-full +HellaSwag"
     checkpoint_interval: int = 200
+    hellaswag_interval: int = 2
 
 
 @dataclass
@@ -36,7 +37,7 @@ class OptimizerConfig:
     warmup_steps: int = 715
     max_lr: float = 6e-4
     min_lr: float = field(init=False)
-    max_steps: int = 19073  # 10B tokens / tokens_per_batch
+    max_steps: int = 10  # 19073  # 10B tokens / tokens_per_batch
 
     def __post_init__(self):
         self.min_lr = self.max_lr * 0.1
@@ -45,7 +46,7 @@ class OptimizerConfig:
 @dataclass
 class GPTDataConfig:
     path: str = "fineweb_edu"
-    limit_files: int = -1
+    limit_files: int = 1
 
 
 @dataclass
