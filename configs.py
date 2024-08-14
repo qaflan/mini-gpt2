@@ -14,7 +14,7 @@ class GPTConfig:
 
 @dataclass
 class GPTTrainConfig:
-    compile: bool = True
+    compile: bool = False
     micro_batch_size: int = 16
     tokens_per_batch: int = 524288  # 2**19 ~0.5M
     seed: int = 1337
