@@ -131,7 +131,7 @@ class HellaSwagLoader:
         i = 0
         for item in ds:
             ds_prepared.append(self._prepare(item))
-            i+=1
+            i += 1
             if i > 20:
                 break
         return ds_prepared
