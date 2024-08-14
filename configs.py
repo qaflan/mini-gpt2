@@ -54,7 +54,7 @@ class OptimizerConfig:
 @dataclass
 class GPTDataConfig:
     path: str = "fineweb_edu"
-    limit_files: int = 1
+    limit_files: int = -1
 
 
 @dataclass
