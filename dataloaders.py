@@ -119,8 +119,7 @@ class HellaSwagLoader:
         self.rank = rank
         self.world_size = world_size
         self.pos = self.rank
-        self.n = 10//self.world_size #len(self.ds_prepared) // self.world_size
-        #self.n = len(self.ds_prepared) // self.world_size
+        self.n = len(self.ds_prepared) // self.world_size
         self.reset()
 
     def preapre_records(self):
