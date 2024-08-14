@@ -317,6 +317,8 @@ def train(USE_WANDB=False):
             gpt.eval()
             acc = evaluate_hellaswag(hellaswag_loader, gpt, device=device)
             log(f"Hellaswag acc {step=}, {acc=}")
+            if USE_WANDB:
+                log_wandb(step=step, data={"hellaswag_acc": acc})
         if step % train_config.checkpoint_interval == 0:
             save_snapshot(gpt, step)
 
@@ -334,6 +336,6 @@ def save_snapshot(gpt, step):
 
 if __name__ == "__main__":
     set_logging_params()
-    train(USE_WANDB=False)
+    train(USE_WANDB=True)
     if IS_DDP_RUN:
         dist.destroy_process_group()
