@@ -24,7 +24,7 @@ class GPTTrainConfig:
     generate_interval: int = 300
     run_name: str = "fineweb-train-full +HellaSwag"
     checkpoint_interval: int = 200
-    hellaswag_interval: int = 2
+    hellaswag_interval: int = 200
 
     def __post_init__(self):
         if self.compile and self.hellaswag_interval > 0 and IS_DDP_RUN:
