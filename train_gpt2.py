@@ -331,9 +331,6 @@ def save_snapshot(gpt, step):
     log(f"saving checkpoint to {checkpoint_path}")
     torch.save(gpt.state_dict(), checkpoint_path)
 
-    # save the model
-    torch.save(gpt.state_dict(), "state_dict.pt")
-
 
 if __name__ == "__main__":
     set_logging_params()
