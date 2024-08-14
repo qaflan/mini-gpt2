@@ -1,11 +1,10 @@
 import torch
-from dataloaders import HellaSwagLoader, DataLoader
+from dataloaders import HellaSwagLoader
 from tqdm import tqdm
 from torch.nn import functional as F
-from utils import IS_DDP_RUN, IS_MASTER, RANK, WORLD_SIZE
+from utils import IS_DDP_RUN, IS_MASTER
 from gpt import GPT
 import torch.distributed as dist
-from configs import GPTConfig, GPTDataConfig, GPTTrainConfig
 
 
 @torch.no_grad()
@@ -59,53 +58,3 @@ def evaluate_hellaswag(loader: HellaSwagLoader, model: GPT, device=None) -> floa
         dist.all_reduce(correct, dist.ReduceOp.SUM)
     accuracy = correct / total
     return accuracy.item()
-
-
-if __name__ == "__main__":
-    import torch.distributed as dist
-
-    torch.set_float32_matmul_precision('high')
-    if IS_DDP_RUN:
-        dist.init_process_group(backend="nccl")
-        assert torch.cuda.is_available(), "CUDA must be available for ddp run"
-    import tiktoken
-    from gpt import GPT
-
-    if IS_DDP_RUN:
-        device = f"cuda:{RANK}"
-    else:
-        device = "cuda:1"
-    tokenizer = tiktoken.get_encoding("gpt2")
-    loader = HellaSwagLoader(
-        tokenizer, split="validation", rank=RANK, world_size=WORLD_SIZE
-    )
-
-    print(f"{loader.n=}")
-    model = GPT(GPTConfig())#.from_pretrained("gpt2").to(device)
-    data_config = GPTDataConfig()
-    
-    train_loader = DataLoader(
-        path=data_config.path,
-        batch_size=16,
-        block_size=model.config.block_size,
-        rank=RANK,
-        world_size=WORLD_SIZE,
-        split="train",
-        limit_files=1,
-    )
-    
-    model = model.to(device)
-    print("compiling...")
-    model = torch.compile(model)
-    print("Compiled")
-    optimizer = torch.optim.Adam(lr=0.001)
-    optimizer.zero_grad()
-    x, y = train_loader.next_batch()
-    logits, loss:torch.Tensor = model(x.to(device), y.to(device))
-    print(loss)
-    loss.backward()
-    model.eval()
-
-    acc = evaluate_hellaswag(loader, model, device=device)
-    if IS_MASTER:
-        print(f"{acc=}")
