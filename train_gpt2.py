@@ -318,7 +318,7 @@ def train(USE_WANDB=False):
             acc = evaluate_hellaswag(hellaswag_loader, gpt, device=device)
             log(f"Hellaswag acc {step=}, {acc=}")
             if USE_WANDB:
-                log_wandb(step=step, data={"hellaswag_acc": acc})
+                log_wandb({"hellaswag_acc": acc})
         if step % train_config.checkpoint_interval == 0:
             save_snapshot(gpt, step)
 
