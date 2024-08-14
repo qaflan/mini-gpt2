@@ -310,11 +310,13 @@ def train(USE_WANDB=False):
                     print(sentence)
                     print()
                 print("-" * 100)
-        if step % train_config.hellaswag_interval == 0:
+        if (
+            train_config.hellaswag_interval > 0
+            and step % train_config.hellaswag_interval == 0
+        ):
             gpt.eval()
             acc = evaluate_hellaswag(hellaswag_loader, gpt, device=device)
             log(f"Hellaswag acc {step=}, {acc=}")
-            import sys; sys.exit(0)
         if step % train_config.checkpoint_interval == 0:
             save_snapshot(gpt, step)
 
