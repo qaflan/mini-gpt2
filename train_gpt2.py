@@ -216,7 +216,11 @@ def train(USE_WANDB=False):
         split="val",
     )
     hellaswag_loader = HellaSwagLoader(
-        tokenizer=tokenizer, path="Rowan/hellaswag", split="validation",rank=RANK, world_size=WORLD_SIZE
+        tokenizer=tokenizer,
+        path="Rowan/hellaswag",
+        split="validation",
+        rank=RANK,
+        world_size=WORLD_SIZE,
     )
 
     gpt_generator = GPTGenerator(gpt, tokenizer, device)
