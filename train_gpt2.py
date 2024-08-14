@@ -191,8 +191,11 @@ def train(USE_WANDB=False):
     # gpt = GPT.from_pretrained("gpt2")
     gpt = GPT(model_config)
     gpt.to(device)
-    log("compiling torch model...")
-    gpt = torch.compile(gpt)
+    if config.train_config.compile:
+        log("compiling torch model...")
+        gpt = torch.compile(gpt)
+    else:
+        log("proceeding without compiling the model.")
     log(f"{gpt.config=}")
     micro_batch_size = train_config.micro_batch_size
     train_loader = DataLoader(
