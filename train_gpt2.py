@@ -316,11 +316,18 @@ def train(USE_WANDB=False):
             log(f"Hellaswag acc {step=}, {acc=}")
             import sys; sys.exit(0)
         if step % train_config.checkpoint_interval == 0:
-            checkpoints_dir = "checkpoints"
-            os.makedirs(checkpoints_dir, exist_ok=True)
-            checkpoint_path = f"{checkpoints_dir}/checkpoint_{step:06}.pt"
-            log(f"saving checkpoint to {checkpoint_path}")
-            torch.save(gpt.state_dict(), checkpoint_path)
+            save_snapshot(gpt, step)
+
+    # save the model
+    torch.save(gpt.state_dict(), "state_dict.pt")
+
+
+def save_snapshot(gpt, step):
+    checkpoints_dir = "checkpoints"
+    os.makedirs(checkpoints_dir, exist_ok=True)
+    checkpoint_path = f"{checkpoints_dir}/checkpoint_{step:06}.pt"
+    log(f"saving checkpoint to {checkpoint_path}")
+    torch.save(gpt.state_dict(), checkpoint_path)
 
     # save the model
     torch.save(gpt.state_dict(), "state_dict.pt")
