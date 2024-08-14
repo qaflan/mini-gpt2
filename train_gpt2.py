@@ -283,20 +283,20 @@ def train(USE_WANDB=False):
         if USE_WANDB:
             log_wandb(log_payload)
 
-        # if step % train_config.val_interval == 0:
-        #     # eval
-        #     log("Evaluating the model...")
-        #     gpt.eval()
-        #     val_loss = eval_step(
-        #         val_loader,
-        #         device,
-        #         device_type,
-        #         gpt,
-        #         val_steps=train_config.val_microbatch_steps,
-        #     )
-        #     log(f"step={step} | val_loss={val_loss.item()}")
-        #     if USE_WANDB:
-        #         log_wandb({"val_loss": val_loss.item()})
+        if step % train_config.val_interval == 0:
+            # eval
+            log("Evaluating the model...")
+            gpt.eval()
+            val_loss = eval_step(
+                val_loader,
+                device,
+                device_type,
+                gpt,
+                val_steps=train_config.val_microbatch_steps,
+            )
+            log(f"step={step} | val_loss={val_loss.item()}")
+            if USE_WANDB:
+                log_wandb({"val_loss": val_loss.item()})
 
         if step % train_config.generate_interval == 0:
             # generate
