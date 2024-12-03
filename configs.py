@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Tuple
+from utils import IS_DDP_RUN
 
 
 @dataclass
@@ -13,6 +14,7 @@ class GPTConfig:
 
 @dataclass
 class GPTTrainConfig:
+    compile: bool = False
     micro_batch_size: int = 16
     tokens_per_batch: int = 524288  # 2**19 ~0.5M
     seed: int = 1337
@@ -20,8 +22,15 @@ class GPTTrainConfig:
     val_microbatch_steps: int = 500
     val_interval: int = 300
     generate_interval: int = 300
-    run_name: str = "fineweb-train-full"
+    run_name: str = "fineweb-train-full +HellaSwag"
     checkpoint_interval: int = 200
+    hellaswag_interval: int = 200
+
+    def __post_init__(self):
+        if self.compile and self.hellaswag_interval > 0 and IS_DDP_RUN:
+            raise AttributeError(
+                "Evaluating hellaswag with compiled models do not work with torchrun. Please set compile=False or disable hellaswag evaluation and try again."
+            )
 
 
 @dataclass
